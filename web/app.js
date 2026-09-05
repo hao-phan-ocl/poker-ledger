@@ -35,6 +35,13 @@ function money(cents) {
   return `${sign}$${amount}`;
 }
 
+/* Drops ".00" where there is nothing after the point, for lists where the
+   column would otherwise crowd out the name. Never rounds - an amount with
+   real cents keeps them. */
+function moneyShort(cents) {
+  return cents % 100 === 0 ? money(cents).replace('.00', '') : money(cents);
+}
+
 /* Signed from the player's side of the table: a buy-in is money they handed
    over, a cash-out is money they got back. Stored unsigned either way. */
 function entrySign(txn) {
@@ -232,8 +239,8 @@ async function renderGames() {
           ${game.location ? ' &middot; ' + esc(game.location) : ''}
         </div>
       </div>
-      <div style="text-align:right">
-        <div class="money">${esc(money(game.pot_cents))}</div>
+      <div style="text-align:right;flex:none">
+        <div class="money">${esc(moneyShort(game.pot_cents))}</div>
         <div class="muted">bought in</div>
       </div>
     </a>`).join('');
@@ -748,17 +755,21 @@ function drawOdds() {
       <div class="slots">
         <div class="slot-group">
           <span class="label">Your hand</span>
-          ${slot(0, odds.hole[0])}${slot(1, odds.hole[1])}
+          <div class="slot-row">${slot(0, odds.hole[0])}${slot(1, odds.hole[1])}</div>
         </div>
         <div class="slot-group">
           <span class="label">Flop</span>
-          ${slot(2, odds.board[0])}${slot(3, odds.board[1])}${slot(4, odds.board[2])}
+          <div class="slot-row">
+            ${slot(2, odds.board[0])}${slot(3, odds.board[1])}${slot(4, odds.board[2])}
+          </div>
         </div>
         <div class="slot-group">
-          <span class="label">Turn</span>${slot(5, odds.board[3])}
+          <span class="label">Turn</span>
+          <div class="slot-row">${slot(5, odds.board[3])}</div>
         </div>
         <div class="slot-group">
-          <span class="label">River</span>${slot(6, odds.board[4])}
+          <span class="label">River</span>
+          <div class="slot-row">${slot(6, odds.board[4])}</div>
         </div>
       </div>
       <div class="deck">

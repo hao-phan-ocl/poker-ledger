@@ -213,13 +213,17 @@ label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 
 
 /* ---------- odds ---------- */
 
-.slots { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
-.slot-group { display: flex; gap: 6px; align-items: flex-end; }
-.slot-group .label { font-size: 0.7rem; color: var(--muted); width: 100%; }
+/* Each group is a column - label directly above its own cards. Laying the
+   label out as a full-width sibling of the buttons left it floating away
+   from the cards it names on a narrow screen. */
+.slots { display: flex; gap: 9px; flex-wrap: wrap; margin-bottom: 6px; }
+.slot-group { display: flex; flex-direction: column; gap: 3px; }
+.slot-group .label { font-size: 0.68rem; color: var(--muted); line-height: 1; }
+.slot-row { display: flex; gap: 4px; }
 
 .slot {
-  width: 42px;
-  height: 58px;
+  width: 38px;
+  height: 54px;
   border-radius: 8px;
   border: 1px dashed var(--line);
   background: var(--bg);
