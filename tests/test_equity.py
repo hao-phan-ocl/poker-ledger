@@ -322,33 +322,3 @@ class TestChanceOfHitting:
         assert turn["flush"].cards_to_come == 1
         # Same outs, one fewer draw, so roughly half the chance.
         assert turn["flush"].chance < flop["flush"].chance
-
-
-class TestOutcomes:
-    def test_every_ending_is_accounted_for(self):
-        result = equity(cards("As Ks"), cards("Qs Js 2h"), 2, trials=50_000, seed=6)
-        assert sum(o.chance for o in result.outcomes) == pytest.approx(1.0, abs=0.001)
-
-    def test_it_is_conditional_on_the_board(self):
-        """Four to a flush already showing makes a flush far more likely than
-        the same two cards with nothing out there."""
-        drawing = equity(cards("As Ks"), cards("Qs Js 2h"), 1, trials=50_000, seed=7)
-        blank = equity(cards("As Ks"), cards("Qd Jc 2h"), 1, trials=50_000, seed=7)
-        flush = next((o.chance for o in drawing.outcomes if o.hand == "flush"), 0)
-        no_flush = next((o.chance for o in blank.outcomes if o.hand == "flush"), 0)
-        assert flush > 0.25
-        assert no_flush < 0.02
-
-    def test_better_hands_win_more_often_when_made(self):
-        result = equity(cards("As Ks"), cards("Qs Js 2h"), 2, trials=50_000, seed=8)
-        by_hand = {o.hand: o.wins_when_made for o in result.outcomes}
-        assert by_hand["flush"] > by_hand["one pair"] > by_hand["high card"]
-
-    def test_the_distribution_agrees_with_the_outs(self):
-        """Nine spades left: the flush and straight-flush endings should add
-        up to roughly the chance of hitting nine outs in two cards."""
-        result = equity(cards("As Ks"), cards("Qs Js 2h"), 1, trials=200_000, seed=9)
-        spades = sum(
-            o.chance for o in result.outcomes if o.hand in ("flush", "straight flush")
-        )
-        assert spades == pytest.approx(0.35, abs=0.02)

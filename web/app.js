@@ -899,25 +899,6 @@ function oddsResultHtml(boardCount) {
           </div>`).join('')}
       </div>` : ''}
 
-    ${r.outcomes && r.outcomes.length > 1 ? `
-      <h2>Where this hand ends up</h2>
-      <div class="card">
-        <div class="muted" style="margin-bottom:8px">
-          Playing to the river from the cards on the table now.
-        </div>
-        ${r.outcomes.filter((o) => o.chance >= 0.001).map((o) => `
-          <div class="bar-row">
-            <span class="bar-label" style="width:104px">${esc(o.hand)}</span>
-            <span class="bar-track">
-              <span class="bar-fill win" style="width:${(o.chance * 100).toFixed(1)}%"></span>
-            </span>
-            <span class="bar-value">${(o.chance * 100).toFixed(1)}%</span>
-            <span class="muted" style="width:74px;text-align:right;flex:none">
-              wins ${(o.wins_when_made * 100).toFixed(0)}%
-            </span>
-          </div>`).join('')}
-      </div>` : ''}
-
     ${r.prices && r.prices.length ? `
       <h2>Is it worth calling?</h2>
       <div class="card">
