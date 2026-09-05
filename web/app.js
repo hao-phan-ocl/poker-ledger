@@ -887,8 +887,9 @@ function oddsResultHtml(boardCount) {
         ${r.draws.map((d) => `
           <div class="draw-row">
             <div class="grow">
-              <strong>${d.outs}</strong> ${d.outs === 1 ? 'card makes' : 'cards make'}
-              a ${esc(d.description)}
+              ${d.outs === 1
+                ? `This card makes a ${esc(d.description)}`
+                : `Any <strong>one</strong> of these ${d.outs} makes a ${esc(d.description)}`}
               <div class="draw-cards">${d.cards.map(prettyCard).join(' ')}</div>
             </div>
             <div style="text-align:right;flex:none">
