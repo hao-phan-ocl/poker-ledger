@@ -885,7 +885,9 @@ function oddsResultHtml(boardCount) {
       <div class="card">
         <div class="banner ${r.prices[0].worth_calling ? 'ok' : 'warn'}"
              style="margin:0 0 10px">${esc(r.biggest_call)}</div>
-        <div class="muted" style="margin-bottom:6px">If someone bets…</div>
+        <div class="muted" style="margin-bottom:6px">
+          ${r.street === 'preflop' ? 'If someone raises to…' : 'If someone bets…'}
+        </div>
         ${r.prices.map((p) => `
           <div class="draw-row">
             <div>${esc(p.bet)}</div>
@@ -896,6 +898,11 @@ function oddsResultHtml(boardCount) {
               </strong>
             </div>
           </div>`).join('')}
+        ${r.street === 'preflop' ? `
+          <div class="muted" style="margin-top:10px">
+            Rough guide preflop: three betting rounds still to come, so calling
+            here commits you to more than this one decision.
+          </div>` : ''}
       </div>` : ''}`;
 }
 
