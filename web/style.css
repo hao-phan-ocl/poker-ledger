@@ -1,0 +1,332 @@
+/* Dark by default: this gets used at a table late at night, often with the
+   phone at arm's length. Tap targets are 44px or larger throughout. */
+
+:root {
+  --bg: #11161c;
+  --surface: #1a212a;
+  --surface-2: #222b36;
+  --line: #2e3a47;
+  --text: #e8edf3;
+  --muted: #93a1b1;
+  --accent: #3ba776;
+  --accent-dim: #2c7d59;
+  --danger: #d76a6a;
+  --warn: #d9a441;
+  --radius: 12px;
+  --tap: 44px;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+/* The browser hides [hidden] elements with `display: none`, but that comes
+   from the UA stylesheet and loses to any rule with real specificity - an id
+   selector setting `display: flex`, say. Without this, #modal-root stays a
+   full-screen dark overlay that dims the page and eats every click. */
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-text-size-adjust: 100%;
+  padding-bottom: calc(64px + env(safe-area-inset-bottom));
+}
+
+/* ---------- chrome ---------- */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px calc(14px + env(safe-area-inset-top));
+  padding-top: max(14px, env(safe-area-inset-top));
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+
+.topbar h1 { margin: 0; font-size: 1.25rem; font-weight: 650; }
+
+main { padding: 16px; max-width: 820px; margin: 0 auto; }
+
+.tabbar {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  display: flex;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 10;
+}
+
+.tabbar a {
+  flex: 1;
+  text-align: center;
+  padding: 16px 4px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.tabbar a.active { color: var(--accent); }
+
+/* ---------- building blocks ---------- */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.row { display: flex; align-items: center; gap: 10px; }
+.row.between { justify-content: space-between; }
+.row.wrap { flex-wrap: wrap; }
+.grow { flex: 1; min-width: 0; }
+.muted { color: var(--muted); font-size: 0.85rem; }
+.stack > * + * { margin-top: 10px; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+h2 { font-size: 1.05rem; margin: 22px 0 10px; }
+h2:first-child { margin-top: 0; }
+
+button, .btn {
+  min-height: var(--tap);
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:active { transform: scale(0.98); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+button.primary { background: var(--accent); border-color: var(--accent); color: #06120c; }
+button.danger  { background: transparent; border-color: var(--danger); color: var(--danger); }
+button.ghost   { background: transparent; }
+button.small   { min-height: 34px; padding: 0 10px; font-size: 0.85rem; }
+button.wide    { width: 100%; }
+
+/* A bare × reads as nothing; a red one reads as delete. */
+.icon-btn {
+  width: 34px;
+  min-height: 34px;
+  padding: 0;
+  flex: none;
+  font-size: 1.15rem;
+  line-height: 1;
+  background: transparent;
+  border-color: transparent;
+  color: var(--danger);
+}
+.icon-btn:hover { border-color: var(--danger); }
+
+input, select {
+  min-height: var(--tap);
+  width: 100%;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+/* The native arrow sits hard against the right edge and drifts far from the
+   text on a wide control. A drawn one can be inset to match the left padding. */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 34px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1.5L6 6.5L11 1.5' stroke='%2393a1b1' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
+input:focus, select:focus { outline: 2px solid var(--accent-dim); outline-offset: 1px; }
+
+label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 4px; }
+
+.field { margin-bottom: 12px; }
+
+.empty { text-align: center; color: var(--muted); padding: 40px 20px; }
+
+.pill {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.pill.live { background: var(--accent-dim); color: #eafff4; }
+
+.banner {
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+.banner.ok    { background: #16332a; color: #9be3c0; border: 1px solid var(--accent-dim); }
+.banner.warn  { background: #3a2f16; color: #f0d193; border: 1px solid var(--warn); }
+
+.money { font-variant-numeric: tabular-nums; font-weight: 650; }
+.pos { color: var(--accent); }
+.neg { color: var(--danger); }
+
+/* ---------- player rows ---------- */
+
+.player-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.player-row:last-child { border-bottom: none; }
+.player-row .name { font-weight: 650; }
+
+.log-entry {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.88rem;
+}
+.log-entry:last-child { border-bottom: none; }
+
+/* ---------- odds ---------- */
+
+.slots { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+.slot-group { display: flex; gap: 6px; align-items: flex-end; }
+.slot-group .label { font-size: 0.7rem; color: var(--muted); width: 100%; }
+
+.slot {
+  width: 42px;
+  height: 58px;
+  border-radius: 8px;
+  border: 1px dashed var(--line);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 0;
+  min-height: 0;
+}
+.slot.filled { background: #f3f5f8; color: #14181d; border-style: solid; border-color: #f3f5f8; }
+.slot.next   { border-color: var(--accent); border-style: solid; }
+.slot .suit  { font-size: 0.95rem; line-height: 1; }
+.slot.red    { color: #c02f2f; }
+
+.deck {
+  display: grid;
+  grid-template-columns: repeat(13, 1fr);
+  gap: 3px;
+  margin-top: 4px;
+}
+
+.deck button {
+  min-height: 40px;
+  padding: 2px 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border-radius: 6px;
+  background: #f3f5f8;
+  color: #14181d;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.05;
+}
+.deck button.red { color: #c02f2f; }
+.deck button.used { opacity: 0.18; }
+.deck button .suit { font-size: 0.8rem; }
+/* "10" is the only two-character rank; keep it on one line in a narrow cell. */
+.deck button > span { white-space: nowrap; letter-spacing: -0.03em; }
+
+.bars { margin: 8px 0 4px; }
+.bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 0.9rem; }
+.bar-row .bar-label { width: 44px; color: var(--muted); font-size: 0.82rem; }
+.bar-track { flex: 1; height: 20px; background: var(--surface-2); border-radius: 5px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 5px; }
+.bar-fill.win  { background: var(--accent); }
+.bar-fill.tie  { background: var(--warn); }
+.bar-fill.lose { background: var(--danger); }
+.bar-row .bar-value { width: 58px; text-align: right; font-variant-numeric: tabular-nums; }
+
+.headline { font-size: 2.1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.draw-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 0.9rem; }
+.draw-row:last-child { border-bottom: none; }
+.draw-cards { color: var(--muted); font-size: 0.82rem; }
+
+/* ---------- capital curve ---------- */
+
+.curve { width: 100%; height: 44px; display: block; margin-top: 8px; }
+
+/* ---------- modal & toast ---------- */
+
+#modal-root {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.modal {
+  background: var(--surface);
+  border-radius: 16px 16px 0 0;
+  padding: 20px 16px calc(20px + env(safe-area-inset-bottom));
+  width: 100%;
+  max-width: 480px;
+  border-top: 1px solid var(--line);
+}
+.modal h3 { margin: 0 0 14px; font-size: 1.05rem; }
+
+#toast {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(78px + env(safe-area-inset-bottom));
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  padding: 11px 16px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  z-index: 60;
+  max-width: 92vw;
+  text-align: center;
+}
+
+#toast.error { border-color: var(--danger); color: #ffd9d9; }
+
+@media (min-width: 560px) {
+  .slot { width: 50px; height: 68px; font-size: 1.1rem; }
+  .deck button { min-height: 46px; font-size: 0.88rem; }
+}

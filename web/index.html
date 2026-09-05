@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#11161c">
+  <title>Poker Ledger</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#127183;</text></svg>">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1 id="view-title">Games</h1>
+    <div id="view-action"></div>
+  </header>
+
+  <main id="view"></main>
+
+  <nav class="tabbar">
+    <a href="#/games"   data-tab="games">Games</a>
+    <a href="#/players" data-tab="players">Players</a>
+    <a href="#/odds"    data-tab="odds">Odds</a>
+  </nav>
+
+  <div id="modal-root" hidden></div>
+  <div id="toast" hidden></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+# Runs on every `git commit`. Install once with:  uv run pre-commit install
+#
+# These hooks use `language: system`, meaning they call the ruff already in
+# this project's .venv rather than a second copy pre-commit downloads and pins
+# separately. That keeps exactly one ruff version, the one in uv.lock, so
+# `uv lock --upgrade` moves the editor, the terminal and the hook together
+# instead of leaving them to disagree about formatting.
+
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-format
+        name: format with ruff
+        entry: uv run ruff format
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+
+      - id: ruff-check
+        name: lint with ruff
+        entry: uv run ruff check --fix
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      # data/poker.db is gitignored, but a stray export or notebook checkpoint
+      # is an easy way to commit something large by accident.
+      - id: check-added-large-files
+        args: [--maxkb=512]

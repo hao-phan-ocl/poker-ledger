@@ -1,0 +1,35 @@
+# Runs the ledger on boot and restarts it if it dies.
+#
+#   sudo cp deploy/poker.service /etc/systemd/system/
+#   sudo systemctl enable --now poker
+#   systemctl status poker
+#
+# Change User, the paths, and POKER_DB if you are not on a default Pi.
+# Run `uv sync` once first - this points straight at the venv rather than
+# going through `uv run`, so a boot with no network still works.
+
+[Unit]
+Description=Poker Ledger
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/poker-ledger
+
+# The database lives outside the repo, so `git pull` and `git clean -xdf`
+# cannot touch it.
+Environment=POKER_DB=/home/pi/poker-data/poker.db
+
+ExecStart=/home/pi/poker-ledger/.venv/bin/uvicorn app.main:app \
+    --host 0.0.0.0 --port 8000
+
+Restart=always
+RestartSec=5
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

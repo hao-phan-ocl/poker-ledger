@@ -1,0 +1,51 @@
+[project]
+name = "poker-ledger"
+version = "0.1.0"
+description = "Ledger and equity calculator for a real-money home poker game"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "numpy>=2.0",
+]
+
+# A dependency group, not an optional-dependencies extra. Extras are for
+# consumers opting into a feature; test tooling is not that. uv installs
+# groups by default, so `uv sync` keeps pytest - with an extra it would
+# quietly uninstall it. Use `uv sync --no-dev` to leave them out.
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "httpx>=0.27",
+    "ruff>=0.16.6",
+    "pre-commit>=4.6.2",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 90
+
+[tool.ruff.lint]
+select = [
+    "E", "F",      # pycodestyle, pyflakes - the defaults
+    "I",           # import sorting
+    "UP",          # outdated syntax for our Python floor
+    "B",           # bugbear: likely mistakes
+    "SIM",         # simplifiable code
+    "RUF",         # ruff's own rules
+]
+
+[tool.ruff.lint.flake8-bugbear]
+# `def route(conn = Depends(get_conn))` is how FastAPI declares a dependency,
+# and B008 flags every one of them as a mutable default. It is the framework's
+# documented idiom, not a mistake.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path"]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
