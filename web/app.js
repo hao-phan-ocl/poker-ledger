@@ -27,19 +27,16 @@ function esc(value) {
   ));
 }
 
+/* Whole amounts lose the ".00" - it is never the interesting part and it
+   crowds out names on a phone. An amount with real cents keeps them, so
+   nothing is ever rounded away. */
 function money(cents) {
   const sign = cents < 0 ? '-' : '';
+  const places = cents % 100 === 0 ? 0 : 2;
   const amount = (Math.abs(cents) / 100).toLocaleString(undefined, {
-    minimumFractionDigits: 2, maximumFractionDigits: 2,
+    minimumFractionDigits: places, maximumFractionDigits: 2,
   });
   return `${sign}$${amount}`;
-}
-
-/* Drops ".00" where there is nothing after the point, for lists where the
-   column would otherwise crowd out the name. Never rounds - an amount with
-   real cents keeps them. */
-function moneyShort(cents) {
-  return cents % 100 === 0 ? money(cents).replace('.00', '') : money(cents);
 }
 
 /* Signed from the player's side of the table: a buy-in is money they handed
@@ -240,7 +237,7 @@ async function renderGames() {
         </div>
       </div>
       <div style="text-align:right;flex:none">
-        <div class="money">${esc(moneyShort(game.pot_cents))}</div>
+        <div class="money">${esc(money(game.pot_cents))}</div>
         <div class="muted">bought in</div>
       </div>
     </a>`).join('');
