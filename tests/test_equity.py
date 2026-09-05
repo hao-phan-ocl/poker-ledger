@@ -284,3 +284,41 @@ class TestValidation:
             equity(cards("Ah Kd"), [], 0, trials=100)
         with pytest.raises(EquityError):
             equity(cards("Ah Kd"), [], 10, trials=100)
+
+
+class TestChanceOfHitting:
+    def test_nine_outs_is_two_draws_not_nine(self):
+        """Outs count cards in the deck, not cards you receive. Nine outs on
+        the flop is nine chances across two draws."""
+        from app.poker.equity import chance_of_hitting
+
+        assert chance_of_hitting(9, 47, 2) == pytest.approx(0.350, abs=0.001)
+        assert chance_of_hitting(9, 46, 1) == pytest.approx(0.196, abs=0.001)
+
+    def test_it_tracks_the_rule_of_four_and_two(self):
+        """The shortcut players use at the table: outs x 4 on the flop, x 2 on
+        the turn. It drifts by up to two points, and further above ten outs -
+        15 outs is really 54%, not the 60% the rule claims."""
+        from app.poker.equity import chance_of_hitting
+
+        for outs in (4, 8, 9):
+            assert chance_of_hitting(outs, 47, 2) * 100 == pytest.approx(outs * 4, abs=2)
+            assert chance_of_hitting(outs, 46, 1) * 100 == pytest.approx(outs * 2, abs=2)
+
+        assert chance_of_hitting(15, 47, 2) * 100 == pytest.approx(54.1, abs=0.5)
+
+    def test_one_card_to_come_is_worth_about_half(self):
+        from app.poker.equity import chance_of_hitting
+
+        assert chance_of_hitting(9, 46, 1) < chance_of_hitting(9, 47, 2)
+
+    def test_draws_carry_their_chance(self):
+        flop = {d.description: d for d in find_draws(cards("As Ks"), cards("Qs Js 2h"))}
+        turn = {
+            d.description: d for d in find_draws(cards("As Ks"), cards("Qs Js 2h 3d"))
+        }
+        assert flop["flush"].outs == turn["flush"].outs == 8
+        assert flop["flush"].cards_to_come == 2
+        assert turn["flush"].cards_to_come == 1
+        # Same outs, one fewer draw, so roughly half the chance.
+        assert turn["flush"].chance < flop["flush"].chance

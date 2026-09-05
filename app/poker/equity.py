@@ -39,6 +39,21 @@ class Draw:
     description: str
     outs: int
     cards: list[str]
+    chance: float = 0.0
+    cards_to_come: int = 0
+
+
+def chance_of_hitting(outs: int, unseen: int, to_come: int) -> float:
+    """Odds that at least one of ``outs`` arrives in the cards still to come.
+
+    Outs count how many cards in the deck would help, not how many you get -
+    nine outs on the flop is nine chances spread across two draws, not nine
+    cards. Worked as the complement: the odds of missing every time.
+    """
+    missing = 1.0
+    for drawn in range(to_come):
+        missing *= (unseen - outs - drawn) / (unseen - drawn)
+    return 1.0 - missing
 
 
 @dataclass
@@ -266,8 +281,16 @@ def find_draws(hole: list[int], board: list[int]) -> list[Draw]:
             continue
         by_category.setdefault(category, []).append(card_str(card))
 
+    unseen = len(unseen)
+    to_come = 5 - len(board)
     return [
-        Draw(description=CATEGORY_NAMES[cat], outs=len(cards_), cards=sorted(cards_))
+        Draw(
+            description=CATEGORY_NAMES[cat],
+            outs=len(cards_),
+            cards=sorted(cards_),
+            chance=chance_of_hitting(len(cards_), unseen, to_come),
+            cards_to_come=to_come,
+        )
         for cat, cards_ in sorted(by_category.items(), reverse=True)
     ]
 

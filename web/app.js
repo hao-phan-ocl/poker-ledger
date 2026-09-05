@@ -882,11 +882,21 @@ function oddsResultHtml(boardCount) {
     ${r.draws && r.draws.length ? `
       <h2>Cards that improve you</h2>
       <div class="card">
+        <div class="muted" style="margin-bottom:6px">
+          ${r.draws[0].cards_to_come === 2
+            ? 'Two cards still to come — turn and river.'
+            : 'One card still to come — the river.'}
+        </div>
         ${r.draws.map((d) => `
           <div class="draw-row">
-            <div>
-              <strong>${d.outs}</strong> to a ${esc(d.description)}
+            <div class="grow">
+              <strong>${d.outs}</strong> ${d.outs === 1 ? 'card makes' : 'cards make'}
+              a ${esc(d.description)}
               <div class="draw-cards">${d.cards.map(prettyCard).join(' ')}</div>
+            </div>
+            <div style="text-align:right;flex:none">
+              <div class="money">${(d.chance * 100).toFixed(0)}%</div>
+              <div class="muted" style="font-size:0.7rem">to hit</div>
             </div>
           </div>`).join('')}
       </div>` : ''}
