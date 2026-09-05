@@ -11,7 +11,6 @@ const toastEl = document.getElementById('toast');
 
 /* ------------------------------------------------------------------ utils */
 
-const SYMBOLS = { EUR: '€', USD: '$', GBP: '£' };
 const SUIT_GLYPH = { s: '♠', h: '♥', d: '♦', c: '♣' };
 const RANK_ORDER = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
 const SUIT_ORDER = ['s', 'h', 'd', 'c'];
@@ -28,13 +27,12 @@ function esc(value) {
   ));
 }
 
-function money(cents, currency = 'EUR') {
-  const symbol = SYMBOLS[currency] || currency + ' ';
+function money(cents) {
   const sign = cents < 0 ? '-' : '';
   const amount = (Math.abs(cents) / 100).toLocaleString(undefined, {
     minimumFractionDigits: 2, maximumFractionDigits: 2,
   });
-  return `${sign}${symbol}${amount}`;
+  return `${sign}$${amount}`;
 }
 
 /* Signed from the player's side of the table: a buy-in is money they handed
@@ -43,10 +41,10 @@ function entrySign(txn) {
   return txn.kind === 'buy_in' ? -txn.amount_cents : txn.amount_cents;
 }
 
-function signed(cents, currency) {
+function signed(cents) {
   const cls = cents > 0 ? 'pos' : cents < 0 ? 'neg' : '';
   const prefix = cents > 0 ? '+' : '';
-  return `<span class="money ${cls}">${prefix}${esc(money(cents, currency))}</span>`;
+  return `<span class="money ${cls}">${prefix}${esc(money(cents))}</span>`;
 }
 
 /** Accepts "50", "50.25", "€50" and returns whole cents, or null. */
@@ -70,8 +68,7 @@ function parseBlinds(text) {
 function blindsLabel(game) {
   if (!game.big_blind_cents) return '';
   const strip = (cents) => (cents % 100 === 0 ? cents / 100 : (cents / 100).toFixed(2));
-  const symbol = SYMBOLS[game.currency] || '';
-  return `${symbol}${strip(game.small_blind_cents)}/${strip(game.big_blind_cents)}`;
+  return `$${strip(game.small_blind_cents)}/${strip(game.big_blind_cents)}`;
 }
 
 function shortDate(iso) {
@@ -225,6 +222,7 @@ async function renderGames() {
       <div class="grow">
         <div class="row" style="gap:8px">
           <strong class="truncate">${esc(game.label)}</strong>
+          <span class="muted" style="flex:none">#${game.id}</span>
           ${game.status === 'live' ? '<span class="pill live">Live</span>' : ''}
           ${game.voided ? '<span class="pill">Discarded</span>' : ''}
         </div>
@@ -235,7 +233,7 @@ async function renderGames() {
         </div>
       </div>
       <div style="text-align:right">
-        <div class="money">${esc(money(game.pot_cents, game.currency))}</div>
+        <div class="money">${esc(money(game.pot_cents))}</div>
         <div class="muted">bought in</div>
       </div>
     </a>`).join('');
@@ -248,11 +246,6 @@ async function newGame() {
     fields: [
       { name: 'label', label: 'Name', value: `Game ${shortDate(new Date().toISOString())}` },
       { name: 'location', label: 'Where (optional)', placeholder: 'Kitchen table' },
-      { name: 'currency', label: 'Currency', options: [
-        { value: 'EUR', label: 'EUR €' },
-        { value: 'USD', label: 'USD $' },
-        { value: 'GBP', label: 'GBP £' },
-      ] },
       { name: 'buy_in', label: 'Standard buy-in', inputmode: 'decimal', value: '50' },
       { name: 'blinds', label: 'Blinds', placeholder: '10/20', value: '' },
     ],
@@ -265,7 +258,6 @@ async function newGame() {
     body: {
       label: values.label,
       location: values.location,
-      currency: values.currency,
       default_buy_in_cents: parseMoney(values.buy_in) || 0,
       small_blind_cents: blinds.small,
       big_blind_cents: blinds.big,
@@ -283,7 +275,6 @@ async function renderGame(gameId) {
   const { game, summary, transactions } = detail;
   const settlement = await attempt(() => api(`/games/${gameId}/settlement`));
   const players = await attempt(() => api('/players')) || [];
-  const currency = game.currency;
   const seated = new Set(summary.results.map((r) => r.player_id));
   const anyCashedOut = summary.results.some((r) => r.cashed_out);
 
@@ -306,11 +297,11 @@ async function renderGame(gameId) {
       <div class="row between">
         <div>
           <div class="muted">Bought in</div>
-          <div class="headline" style="font-size:1.5rem">${esc(money(summary.total_buy_in_cents, currency))}</div>
+          <div class="headline" style="font-size:1.5rem">${esc(money(summary.total_buy_in_cents))}</div>
         </div>
         <div style="text-align:right">
           <div class="muted">Still on the table</div>
-          <div class="headline" style="font-size:1.5rem">${esc(money(onTable, currency))}</div>
+          <div class="headline" style="font-size:1.5rem">${esc(money(onTable))}</div>
         </div>
       </div>
       <div class="muted" style="margin-top:8px">
@@ -354,7 +345,7 @@ async function renderGame(gameId) {
                 <span class="muted">${esc(t.kind.replace('_', '-'))}${t.note ? ' · ' + esc(t.note) : ''}</span>
               </div>
               <div class="row" style="gap:8px">
-                ${signed(entrySign(t), currency)}
+                ${signed(entrySign(t))}
                 ${game.status === 'live' && !game.voided
                   ? `<button class="icon-btn" data-del="${t.id}"
                              aria-label="Delete entry" title="Delete entry">×</button>` : ''}
@@ -379,23 +370,22 @@ async function renderGame(gameId) {
 }
 
 function playerRow(result, game) {
-  const currency = game.currency;
   const live = game.status === 'live';
   const buyInLabel = game.default_buy_in_cents
-    ? `+ ${money(game.default_buy_in_cents, currency)}`
+    ? `+ ${money(game.default_buy_in_cents)}`
     : '+ Buy-in';
   return `
     <div class="player-row">
       <div class="grow">
         <div class="name truncate">${esc(result.name)}</div>
         <div class="muted">
-          in ${esc(money(result.buy_in_cents, currency))}
-          ${result.cashed_out ? ' · out ' + esc(money(result.cash_out_cents, currency)) : ''}
-          ${result.adjustment_cents ? ' · adj ' + esc(money(result.adjustment_cents, currency)) : ''}
+          in ${esc(money(result.buy_in_cents))}
+          ${result.cashed_out ? ' · out ' + esc(money(result.cash_out_cents)) : ''}
+          ${result.adjustment_cents ? ' · adj ' + esc(money(result.adjustment_cents)) : ''}
         </div>
       </div>
       <div style="text-align:right;min-width:76px">
-        ${result.cashed_out ? signed(result.net_cents, currency) : '<span class="muted">playing</span>'}
+        ${result.cashed_out ? signed(result.net_cents) : '<span class="muted">playing</span>'}
       </div>
       ${live ? `
         <div class="row" style="gap:6px">
@@ -425,7 +415,7 @@ function settlementSection(settlement) {
             <span class="muted">pays</span>
             <strong>${esc(p.to_name)}</strong>
           </div>
-          <span class="money">${esc(money(p.amount_cents, settlement.currency))}</span>
+          <span class="money">${esc(money(p.amount_cents))}</span>
         </div>`).join('')}
     </div>`;
 }
@@ -440,7 +430,7 @@ function bindGameActions(gameId, game, summary, transactions) {
 
     renderGame(gameId);
     const what = body.kind === 'buy_in' ? 'Buy-in' : 'Cash-out';
-    toast(`${what} ${money(body.amount_cents, game.currency)} — ${nameOf(body.player_id)}`);
+    toast(`${what} ${money(body.amount_cents)} — ${nameOf(body.player_id)}`);
   }
 
   view.querySelectorAll('[data-quickbuy]').forEach((button) => {
@@ -585,7 +575,7 @@ function bindGameActions(gameId, game, summary, transactions) {
       const entries = transactions.length;
       const damage = entries
         ? `${entries} entr${entries === 1 ? 'y' : 'ies'} and `
-          + `${money(summary.total_buy_in_cents, game.currency)} of buy-ins`
+          + `${money(summary.total_buy_in_cents)} of buy-ins`
         : 'nothing — no money was ever recorded against it';
       const proceed = await confirmModal(
         'Delete this game permanently?',
@@ -653,7 +643,6 @@ async function renderPlayers() {
 }
 
 function playerStatsCard(stats) {
-  const currency = stats.sessions.length ? stats.sessions[0].currency : 'EUR';
   const roi = stats.roi === null ? '—' : (stats.roi * 100).toFixed(1) + '%';
   const streak = stats.streak.length > 1
     ? `${stats.streak.length} ${stats.streak.kind} nights in a row`
@@ -670,15 +659,15 @@ function playerStatsCard(stats) {
           </div>
         </div>
         <div style="text-align:right">
-          <div class="headline" style="font-size:1.35rem">${signed(stats.capital_cents, currency)}</div>
+          <div class="headline" style="font-size:1.35rem">${signed(stats.capital_cents)}</div>
           <div class="muted">ROI ${esc(roi)}</div>
         </div>
       </div>
       ${capitalCurve(stats.sessions)}
       <div class="muted" style="margin-top:6px">
-        Best ${esc(money(stats.best_night_cents, currency))} ·
-        Worst ${esc(money(stats.worst_night_cents, currency))} ·
-        Average ${esc(money(stats.average_net_cents, currency))} a night
+        Best ${esc(money(stats.best_night_cents))} ·
+        Worst ${esc(money(stats.worst_night_cents))} ·
+        Average ${esc(money(stats.average_net_cents))} a night
       </div>
     </div>`;
 }

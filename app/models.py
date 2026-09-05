@@ -13,7 +13,6 @@ class NewPlayer(BaseModel):
 class NewGame(BaseModel):
     label: str = Field(min_length=1, max_length=80)
     location: str = ""
-    currency: str = Field(default="EUR", max_length=8)
     small_blind_cents: int = Field(default=0, ge=0)
     big_blind_cents: int = Field(default=0, ge=0)
     default_buy_in_cents: int = Field(default=0, ge=0)

@@ -17,9 +17,8 @@ class LedgerError(ValueError):
     """Raised when an operation would leave the books in a bad state."""
 
 
-def format_money(cents: int, currency: str = "EUR") -> str:
-    symbol = {"EUR": "€", "USD": "$", "GBP": "£"}.get(currency, currency + " ")
-    return f"{'-' if cents < 0 else ''}{symbol}{abs(cents) / 100:,.2f}"
+def format_money(cents: int) -> str:
+    return f"{'-' if cents < 0 else ''}${abs(cents) / 100:,.2f}"
 
 
 def create_player(conn: sqlite3.Connection, name: str, notes: str = "") -> int:
@@ -52,7 +51,6 @@ def create_game(
     conn: sqlite3.Connection,
     label: str,
     location: str = "",
-    currency: str = "EUR",
     small_blind_cents: int = 0,
     big_blind_cents: int = 0,
     default_buy_in_cents: int = 0,
@@ -69,14 +67,13 @@ def create_game(
             raise LedgerError(f"{name} cannot be negative")
     with conn:
         cur = conn.execute(
-            """INSERT INTO game (label, location, currency, small_blind_cents,
+            """INSERT INTO game (label, location, small_blind_cents,
                                  big_blind_cents, default_buy_in_cents,
                                  status, started_at)
-               VALUES (?, ?, ?, ?, ?, ?, 'live', ?)""",
+               VALUES (?, ?, ?, ?, ?, 'live', ?)""",
             (
                 label,
                 location,
-                currency,
                 small_blind_cents,
                 big_blind_cents,
                 default_buy_in_cents,
@@ -101,7 +98,10 @@ def list_games(conn: sqlite3.Connection) -> list[sqlite3.Row]:
                   (SELECT COALESCE(SUM(amount_cents), 0) FROM txn
                     WHERE txn.game_id = g.id AND kind = 'buy_in') AS pot_cents
              FROM game g
-         ORDER BY g.started_at DESC, g.id DESC"""
+         -- Anything still running comes first, so a game left open is the
+         -- first thing you see rather than something you scroll past.
+         ORDER BY (g.status = 'live' AND g.voided = 0) DESC,
+                  g.started_at DESC, g.id DESC"""
     ).fetchall()
 
 
@@ -274,7 +274,6 @@ class PlayerResult:
 class GameSummary:
     game_id: int
     label: str
-    currency: str
     status: str
     results: list[PlayerResult]
     total_buy_in_cents: int
@@ -324,25 +323,23 @@ def game_summary(conn: sqlite3.Connection, game_id: int) -> GameSummary:
     total_adj = sum(r.adjustment_cents for r in results)
     # Chips are conserved: what comes off the table must equal what went on.
     discrepancy = total_out + total_adj - total_in
-    currency = game["currency"]
 
     if discrepancy == 0:
         message = "The books balance."
     elif discrepancy < 0:
         message = (
-            f"The table is {format_money(-discrepancy, currency)} short - "
+            f"The table is {format_money(-discrepancy)} short - "
             f"chips are missing or a stack was miscounted. Recount before settling."
         )
     else:
         message = (
-            f"The table is {format_money(discrepancy, currency)} over - "
+            f"The table is {format_money(discrepancy)} over - "
             f"more was counted out than was ever bought in. Recount before settling."
         )
 
     return GameSummary(
         game_id=game_id,
         label=game["label"],
-        currency=currency,
         status=game["status"],
         results=results,
         total_buy_in_cents=total_in,
@@ -369,7 +366,6 @@ class Settlement:
     balanced: bool
     message: str
     payments: list[Payment]
-    currency: str
 
 
 def settle(conn: sqlite3.Connection, game_id: int) -> Settlement:
@@ -384,7 +380,6 @@ def settle(conn: sqlite3.Connection, game_id: int) -> Settlement:
             balanced=False,
             message=summary.balance_message,
             payments=[],
-            currency=summary.currency,
         )
 
     debtors = sorted(
@@ -426,6 +421,4 @@ def settle(conn: sqlite3.Connection, game_id: int) -> Settlement:
     else:
         plural = "s" if len(payments) > 1 else ""
         message = f"{len(payments)} payment{plural} settles the night."
-    return Settlement(
-        balanced=True, message=message, payments=payments, currency=summary.currency
-    )
+    return Settlement(balanced=True, message=message, payments=payments)

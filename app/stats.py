@@ -13,7 +13,6 @@ class SessionResult:
     game_id: int
     label: str
     played_at: str
-    currency: str
     buy_in_cents: int
     cash_out_cents: int
     net_cents: int
@@ -49,7 +48,6 @@ _SESSION_QUERY = """
            p.name          AS name,
            g.id            AS game_id,
            g.label         AS label,
-           g.currency      AS currency,
            COALESCE(g.ended_at, g.started_at) AS played_at,
            COALESCE(SUM(CASE WHEN t.kind = 'buy_in'
                              THEN t.amount_cents END), 0) AS buy_in,
@@ -101,7 +99,6 @@ def all_player_stats(conn: sqlite3.Connection) -> list[PlayerStats]:
                     game_id=row["game_id"],
                     label=row["label"],
                     played_at=row["played_at"],
-                    currency=row["currency"],
                     buy_in_cents=row["buy_in"],
                     cash_out_cents=row["cash_out"],
                     net_cents=net,

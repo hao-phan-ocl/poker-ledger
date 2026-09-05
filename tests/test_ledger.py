@@ -18,9 +18,7 @@ def conn():
 
 @pytest.fixture
 def game(conn):
-    return ledger.create_game(
-        conn, "Friday game", currency="EUR", default_buy_in_cents=5000
-    )
+    return ledger.create_game(conn, "Friday game", default_buy_in_cents=5000)
 
 
 def seat(conn, game_id, name):
@@ -383,9 +381,9 @@ class TestMigrations:
 
 class TestMoneyFormatting:
     def test_cents_never_become_floats(self):
-        assert format_money(123456, "EUR") == "€1,234.56"
-        assert format_money(-5000, "USD") == "-$50.00"
-        assert format_money(0, "GBP") == "£0.00"
+        assert format_money(123456) == "$1,234.56"
+        assert format_money(-5000) == "-$50.00"
+        assert format_money(0) == "$0.00"
 
     def test_a_long_night_of_small_amounts_does_not_drift(self, conn, game):
         player = seat(conn, game, "Hao")

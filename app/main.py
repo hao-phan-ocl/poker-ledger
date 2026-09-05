@@ -87,7 +87,6 @@ def create_game(body: NewGame, conn=Depends(get_conn)):
         conn,
         body.label,
         body.location,
-        body.currency,
         body.small_blind_cents,
         body.big_blind_cents,
         body.default_buy_in_cents,
@@ -216,7 +215,7 @@ def export_json(conn=Depends(get_conn)):
 @app.get("/api/export.csv")
 def export_csv(conn=Depends(get_conn)):
     rows = conn.execute(
-        """SELECT g.label AS game, g.started_at, g.status, g.currency,
+        """SELECT g.label AS game, g.started_at, g.status,
                   p.name AS player, t.kind, t.amount_cents, t.note, t.created_at
              FROM txn t
              JOIN player p ON p.id = t.player_id
@@ -231,7 +230,6 @@ def export_csv(conn=Depends(get_conn)):
             "game",
             "started_at",
             "status",
-            "currency",
             "player",
             "kind",
             "amount",
@@ -245,7 +243,6 @@ def export_csv(conn=Depends(get_conn)):
                 row["game"],
                 row["started_at"],
                 row["status"],
-                row["currency"],
                 row["player"],
                 row["kind"],
                 f"{row['amount_cents'] / 100:.2f}",

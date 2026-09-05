@@ -13,6 +13,11 @@ MIGRATIONS: list[str] = [
     ALTER TABLE game ADD COLUMN voided INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE game ADD COLUMN void_reason TEXT NOT NULL DEFAULT '';
     """,
+    # One currency, one symbol. Amounts were stored as bare cents with the
+    # currency only ever used to pick a symbol, so nothing needs converting.
+    """
+    ALTER TABLE game DROP COLUMN currency;
+    """,
 ]
 
 

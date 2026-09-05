@@ -20,7 +20,7 @@ def new_player(client, name):
 
 
 def new_game(client, **kwargs):
-    body = {"label": "Friday", "currency": "EUR", "default_buy_in_cents": 5000, **kwargs}
+    body = {"label": "Friday", "default_buy_in_cents": 5000, **kwargs}
     response = client.post("/api/games", json=body)
     assert response.status_code == 201, response.text
     return response.json()["id"]
@@ -166,6 +166,38 @@ class TestDiscardingAGame:
 
         stats = client.get("/api/players/stats").json()
         assert all(s["games_played"] == 1 for s in stats)
+
+
+class TestGameListing:
+    def test_live_games_come_first(self, client):
+        """A game left running is the thing you most need to see."""
+        old = new_game(client, label="Last week")
+        hao = new_player(client, "Hao")
+        seat(client, old, hao)
+        txn(client, old, hao, "buy_in", 5000)
+        txn(client, old, hao, "cash_out", 5000)
+        client.post(f"/api/games/{old}/close", json={"force": False})
+
+        newer = new_game(client, label="Also closed")
+        client.post(f"/api/games/{newer}/close", json={"force": False})
+        running = new_game(client, label="Still going")
+
+        listed = [g["id"] for g in client.get("/api/games").json()]
+        assert listed[0] == running, "the live game should be at the top"
+
+    def test_two_games_may_share_a_name_and_stay_distinct(self, client):
+        """Only players are unique by name. Two Fridays can share one."""
+        first = new_game(client, label="Friday game")
+        second = new_game(client, label="Friday game")
+        assert first != second
+        assert len(client.get("/api/games").json()) == 2
+
+    def test_two_games_can_be_live_at_once(self, client):
+        """Running a test game alongside a real one is allowed."""
+        a = new_game(client, label="Real")
+        b = new_game(client, label="Testing")
+        live = [g["id"] for g in client.get("/api/games").json() if g["status"] == "live"]
+        assert sorted(live) == sorted([a, b])
 
 
 class TestUndoingAnEntry:
