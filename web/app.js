@@ -246,7 +246,7 @@ async function newGame() {
     fields: [
       { name: 'label', label: 'Name', value: `Game ${shortDate(new Date().toISOString())}` },
       { name: 'location', label: 'Where (optional)', placeholder: 'Kitchen table' },
-      { name: 'buy_in', label: 'Standard buy-in', inputmode: 'decimal', value: '50' },
+      { name: 'buy_in', label: 'Standard buy-in', inputmode: 'decimal', value: '500' },
       { name: 'blinds', label: 'Blinds', placeholder: '10/20', value: '' },
     ],
   });
