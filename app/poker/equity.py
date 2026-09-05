@@ -11,7 +11,17 @@ import numpy as np
 
 from .cards import NUM_CARDS, card_str
 from .evaluator import evaluate
-from .reference import CATEGORY_NAMES, ONE_PAIR
+from .reference import (
+    CATEGORY_NAMES,
+    FLUSH,
+    FULL_HOUSE,
+    ONE_PAIR,
+    QUADS,
+    STRAIGHT,
+    STRAIGHT_FLUSH,
+    TRIPS,
+    TWO_PAIR,
+)
 
 _CHUNK = 20_000  # keeps memory flat however many trials are asked for
 
@@ -197,18 +207,52 @@ def describe_hand(hole: list[int], board: list[int]) -> str:
     return CATEGORY_NAMES[score >> 21]
 
 
+# Categories reached by pairing. A card only improves you into one of these
+# if it pairs something you are actually holding.
+_PAIRING = frozenset({ONE_PAIR, TWO_PAIR, TRIPS, FULL_HOUSE, QUADS})
+
+
+def _lands_on_the_board(
+    hole: list[int], board: list[int], card: int, category: int
+) -> bool:
+    """Would this card hand the same thing to everyone at the table?
+
+    A king pairing a board of K-Q-2 lifts a pair of aces to "two pair", but
+    every opponent gets those kings too, so nothing has moved. The same goes
+    for a fourth spade on an all-spade board when you hold none, or a card
+    completing a straight that sits entirely on the board.
+    """
+    if category in _PAIRING:
+        return (card >> 2) not in {c >> 2 for c in hole}
+    if category in (FLUSH, STRAIGHT_FLUSH):
+        return (card & 3) not in {c & 3 for c in hole}
+    if category == STRAIGHT:
+        # Only reachable board-only once the board plus this card is five
+        # cards, so it never applies on the flop.
+        ranks = {c >> 2 for c in [*board, card]}
+        return len(ranks) >= 5 and _straight_in(ranks)
+    return False
+
+
+def _straight_in(ranks: set[int]) -> bool:
+    for high in range(12, 2, -1):
+        if all(high - offset in ranks for offset in range(5)):
+            return True
+    return {12, 0, 1, 2, 3} <= ranks
+
+
 def find_draws(hole: list[int], board: list[int]) -> list[Draw]:
     """Cards still to come that would improve the hand's category.
 
-    Cards that only pair the board are excluded - they hand every opponent
-    the same hand. Pairing a hole card counts: two overcards are six outs.
+    Cards that improve the board rather than your hand are excluded, because
+    they arrive for everyone equally. Two overcards really are six outs to
+    top pair; a king pairing the board is not an out at all.
     """
     cards = hole + board
     if len(board) not in (3, 4):
         return []
 
     current = int(evaluate(np.array([cards], dtype=np.int64))[0]) >> 21
-    hole_ranks = {c >> 2 for c in hole}
     unseen = [c for c in range(NUM_CARDS) if c not in set(cards)]
     candidates = np.array([[*cards, c] for c in unseen], dtype=np.int64)
     improved = evaluate(candidates) >> 21
@@ -218,7 +262,7 @@ def find_draws(hole: list[int], board: list[int]) -> list[Draw]:
         category = int(category)
         if category <= current:
             continue
-        if category == ONE_PAIR and (card >> 2) not in hole_ranks:
+        if _lands_on_the_board(hole, board, card, category):
             continue
         by_category.setdefault(category, []).append(card_str(card))
 

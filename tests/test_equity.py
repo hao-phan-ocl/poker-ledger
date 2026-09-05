@@ -165,6 +165,45 @@ class TestDraws:
         }
         assert draws["one pair"] == 6
 
+    def test_pairing_the_board_is_not_two_pair_worth_having(self):
+        """Aces on K-Q-2: a king lifts you to "two pair" on paper, but every
+        opponent gets those kings too, so nothing has moved."""
+        draws = {
+            d.description: d.outs for d in find_draws(cards("Ah Ad"), cards("Ks Qd 2c"))
+        }
+        assert "two pair" not in draws
+        assert draws["three of a kind"] == 2
+
+    def test_two_pair_counts_when_it_uses_a_hole_card(self):
+        """A-K with a king on board: only the three aces are real outs."""
+        draws = {
+            d.description: d.outs for d in find_draws(cards("Ah Kd"), cards("Ks Qd 2c"))
+        }
+        assert draws["two pair"] == 3
+        assert draws["three of a kind"] == 2
+
+    def test_a_flush_that_lands_on_the_board_is_not_yours(self):
+        """Four spades out there and none in your hand - the fifth is
+        everyone's flush, not your out."""
+        draws = {
+            d.description: d.outs
+            for d in find_draws(cards("Ah Kd"), cards("Qs Js 2s 7s"))
+        }
+        assert "flush" not in draws
+
+    def test_a_straight_sitting_on_the_board_is_not_yours(self):
+        draws = {
+            d.description: d.outs
+            for d in find_draws(cards("Ah Kd"), cards("5s 6d 7c 8h"))
+        }
+        assert "straight" not in draws
+
+    def test_a_straight_using_your_cards_still_counts(self):
+        draws = {
+            d.description: d.outs for d in find_draws(cards("9h 8h"), cards("7s 6d 2c"))
+        }
+        assert draws["straight"] == 8
+
     def test_no_draws_preflop_or_on_the_river(self):
         assert find_draws(cards("Ah Kd"), []) == []
         assert find_draws(cards("Ah Kd"), cards("Qc Js 2h 3d 4c")) == []
