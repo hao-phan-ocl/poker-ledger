@@ -10,7 +10,7 @@ from math import sqrt
 import numpy as np
 
 from .cards import NUM_CARDS, card_str
-from .evaluator import evaluate
+from .evaluator import CAT_SHIFT, evaluate
 from .reference import (
     CATEGORY_NAMES,
     FLUSH,
@@ -64,6 +64,13 @@ class PriceRow:
 
 
 @dataclass
+class Outcome:
+    hand: str
+    chance: float
+    wins_when_made: float
+
+
+@dataclass
 class EquityResult:
     win: float
     tie: float
@@ -76,6 +83,7 @@ class EquityResult:
     draws: list[Draw] = field(default_factory=list)
     prices: list[PriceRow] = field(default_factory=list)
     biggest_call: str = ""
+    outcomes: list[Outcome] = field(default_factory=list)
 
 
 # Bet sizes as a fraction of the pot before the bet, which is how players
@@ -157,6 +165,11 @@ def equity(
     wins = ties = losses = 0
     equity_sum = 0.0
     done = 0
+    # How often each final hand is reached, and the pot share it collects.
+    # Both are tallied from the same trials the equity comes from, so they
+    # are conditional on the cards already on the table.
+    made = np.zeros(9, dtype=np.int64)
+    made_share = np.zeros(9, dtype=np.float64)
     while done < trials:
         m = min(_CHUNK, trials - done)
         done += m
@@ -193,9 +206,12 @@ def equity(
 
         # Share of pot, so a three-way chop counts as a third, not half a win.
         shared_with = (opp_scores == hero_score[:, None]).sum(axis=1)
-        equity_sum += float(
-            np.where(hero_score >= best_opp, 1.0 / (1 + shared_with), 0.0).sum()
-        )
+        share = np.where(hero_score >= best_opp, 1.0 / (1 + shared_with), 0.0)
+        equity_sum += float(share.sum())
+
+        category = hero_score >> CAT_SHIFT
+        made += np.bincount(category, minlength=9)
+        made_share += np.bincount(category, weights=share, minlength=9)
 
     eq = equity_sum / trials
     return EquityResult(
@@ -211,6 +227,15 @@ def equity(
         draws=find_draws(hole, board),
         prices=price_ladder(eq),
         biggest_call=biggest_call(eq),
+        outcomes=[
+            Outcome(
+                hand=CATEGORY_NAMES[cat],
+                chance=int(made[cat]) / trials,
+                wins_when_made=float(made_share[cat]) / int(made[cat]),
+            )
+            for cat in range(8, -1, -1)
+            if made[cat]
+        ],
     )
 
 
