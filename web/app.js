@@ -58,6 +58,22 @@ function parseMoney(text) {
   return Math.round(value * 100);
 }
 
+/* Blinds are spoken as one thing - "we play 10/20" - so they are typed as one
+   thing rather than as two boxes. */
+function parseBlinds(text) {
+  const parts = String(text ?? '').split('/');
+  const small = parseMoney(parts[0]) || 0;
+  const big = parseMoney(parts[1]) || 0;
+  return { small, big };
+}
+
+function blindsLabel(game) {
+  if (!game.big_blind_cents) return '';
+  const strip = (cents) => (cents % 100 === 0 ? cents / 100 : (cents / 100).toFixed(2));
+  const symbol = SYMBOLS[game.currency] || '';
+  return `${symbol}${strip(game.small_blind_cents)}/${strip(game.big_blind_cents)}`;
+}
+
 function shortDate(iso) {
   if (!iso) return '';
   const date = new Date(iso);
@@ -214,6 +230,7 @@ async function renderGames() {
         </div>
         <div class="muted">
           ${esc(shortDate(game.started_at))} &middot; ${game.player_count} player${game.player_count === 1 ? '' : 's'}
+          ${blindsLabel(game) ? ' &middot; ' + esc(blindsLabel(game)) : ''}
           ${game.location ? ' &middot; ' + esc(game.location) : ''}
         </div>
       </div>
@@ -237,10 +254,12 @@ async function newGame() {
         { value: 'GBP', label: 'GBP £' },
       ] },
       { name: 'buy_in', label: 'Standard buy-in', inputmode: 'decimal', value: '50' },
+      { name: 'blinds', label: 'Blinds', placeholder: '10/20', value: '' },
     ],
   });
   if (!values) return;
 
+  const blinds = parseBlinds(values.blinds);
   const game = await attempt(() => api('/games', {
     method: 'POST',
     body: {
@@ -248,6 +267,8 @@ async function newGame() {
       location: values.location,
       currency: values.currency,
       default_buy_in_cents: parseMoney(values.buy_in) || 0,
+      small_blind_cents: blinds.small,
+      big_blind_cents: blinds.big,
     },
   }));
   if (game) location.hash = `#/game/${game.id}`;
@@ -292,7 +313,13 @@ async function renderGame(gameId) {
           <div class="headline" style="font-size:1.5rem">${esc(money(onTable, currency))}</div>
         </div>
       </div>
-      ${game.status === 'closed' ? '<div class="muted" style="margin-top:8px">This game is closed.</div>' : ''}
+      <div class="muted" style="margin-top:8px">
+        ${blindsLabel(game) ? esc(blindsLabel(game)) + ' blinds' : ''}
+        ${blindsLabel(game) && game.location ? ' &middot; ' : ''}
+        ${game.location ? esc(game.location) : ''}
+        ${game.status === 'closed'
+          ? (blindsLabel(game) || game.location ? ' &middot; ' : '') + 'Closed' : ''}
+      </div>
     </div>
 
     <h2>Players</h2>
