@@ -52,9 +52,15 @@ function signed(cents) {
   return `<span class="money ${cls}">${prefix}${esc(money(cents))}</span>`;
 }
 
-/** Accepts "50", "50.25", "€50" and returns whole cents, or null. */
+/** Accepts "50", "50.25", "$2,000" and returns whole cents, or null.
+    A comma only ever groups thousands. Anything else with a comma ("50,5")
+    is refused, so a typo can't quietly record a different amount. */
 function parseMoney(text) {
-  const cleaned = String(text ?? '').replace(/[^0-9.,-]/g, '').replace(',', '.');
+  let cleaned = String(text ?? '').replace(/[^0-9.,-]/g, '');
+  if (cleaned.includes(',')) {
+    if (!/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(cleaned)) return null;
+    cleaned = cleaned.replace(/,/g, '');
+  }
   if (!cleaned || cleaned === '-' || cleaned === '.') return null;
   const value = Number(cleaned);
   if (!Number.isFinite(value)) return null;
