@@ -14,9 +14,10 @@ const toastEl = document.getElementById('toast');
 const SUIT_GLYPH = { s: '♠', h: '♥', d: '♦', c: '♣' };
 const RANK_ORDER = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
 const SUIT_ORDER = ['s', 'h', 'd', 'c'];
+const SUIT_NAME = { s: 'spades', h: 'hearts', d: 'diamonds', c: 'clubs' };
 
 /* Cards travel as "Th" because the API wants one character per rank, but a
-   lone T does not read as a ten when you are scanning a grid of thirteen. */
+   lone T does not read as a ten when you are scanning a row of ranks. */
 function rankLabel(rank) {
   return rank === 'T' ? '10' : rank;
 }
@@ -710,6 +711,8 @@ const odds = {
   opponents: 1,
   result: null,
   busy: false,
+  pickRank: null, // half-chosen card: a rank and a suit, tapped in either order
+  pickSuit: null,
 };
 
 function oddsCards() {
@@ -737,6 +740,15 @@ function drawOdds() {
   const used = new Set(oddsCards());
   const next = nextSlotIndex();
   const boardCount = odds.board.filter(Boolean).length;
+
+  // A rank is worth offering while some suit of it is free (and, with a suit
+  // already chosen, while that exact card is free) - and the same for suits.
+  const rankOpen = (rank) => (odds.pickSuit
+    ? !used.has(rank + odds.pickSuit)
+    : SUIT_ORDER.some((suit) => !used.has(rank + suit)));
+  const suitOpen = (suit) => (odds.pickRank
+    ? !used.has(odds.pickRank + suit)
+    : RANK_ORDER.some((rank) => !used.has(rank + suit)));
 
   const slot = (index, card) => {
     const isNext = index === next;
@@ -769,15 +781,22 @@ function drawOdds() {
           <div class="slot-row">${slot(6, odds.board[4])}</div>
         </div>
       </div>
-      <div class="deck">
-        ${SUIT_ORDER.flatMap((suit) => RANK_ORDER.map((rank) => {
-          const card = rank + suit;
+      <div class="picker-ranks">
+        ${RANK_ORDER.map((rank) => {
+          const dead = !rankOpen(rank);
+          const on = odds.pickRank === rank;
+          return `<button data-rank="${rank}" class="${on ? 'on' : ''} ${dead ? 'used' : ''}"
+                          ${dead ? 'disabled' : ''}>${rankLabel(rank)}</button>`;
+        }).join('')}
+      </div>
+      <div class="picker-suits">
+        ${SUIT_ORDER.map((suit) => {
+          const dead = !suitOpen(suit);
+          const on = odds.pickSuit === suit;
           const red = suit === 'h' || suit === 'd';
-          return `<button data-card="${card}"
-                          class="${red ? 'red' : ''} ${used.has(card) ? 'used' : ''}">
-            <span>${rankLabel(rank)}</span><span class="suit">${SUIT_GLYPH[suit]}</span>
-          </button>`;
-        })).join('')}
+          return `<button data-suit="${suit}" class="${red ? 'red' : ''} ${on ? 'on' : ''} ${dead ? 'used' : ''}"
+                          ${dead ? 'disabled' : ''} aria-label="${SUIT_NAME[suit]}">${SUIT_GLYPH[suit]}</button>`;
+        }).join('')}
       </div>
     </div>
 
@@ -793,16 +812,36 @@ function drawOdds() {
 
     ${oddsResultHtml(boardCount)}`;
 
-  view.querySelectorAll('[data-card]').forEach((button) => {
-    button.onclick = () => {
-      const card = button.dataset.card;
-      if (used.has(card)) return;
-      const index = nextSlotIndex();
-      if (index === null) return toast('Every slot is full — tap a card to clear it');
-      setSlot(index, card);
-      odds.result = null;
+  const pick = () => {
+    if (!odds.pickRank || !odds.pickSuit) return drawOdds();
+    const card = odds.pickRank + odds.pickSuit;
+    odds.pickRank = null;
+    odds.pickSuit = null;
+    if (used.has(card)) return drawOdds();
+    const index = nextSlotIndex();
+    if (index === null) {
       drawOdds();
-      computeOdds();
+      return toast('Every slot is full — tap a card to clear it');
+    }
+    setSlot(index, card);
+    odds.result = null;
+    drawOdds();
+    computeOdds();
+  };
+
+  view.querySelectorAll('[data-rank]').forEach((button) => {
+    button.onclick = () => {
+      const rank = button.dataset.rank;
+      odds.pickRank = odds.pickRank === rank ? null : rank;
+      pick();
+    };
+  });
+
+  view.querySelectorAll('[data-suit]').forEach((button) => {
+    button.onclick = () => {
+      const suit = button.dataset.suit;
+      odds.pickSuit = odds.pickSuit === suit ? null : suit;
+      pick();
     };
   });
 
@@ -831,6 +870,8 @@ function drawOdds() {
     odds.hole = [null, null];
     odds.board = [null, null, null, null, null];
     odds.result = null;
+    odds.pickRank = null;
+    odds.pickSuit = null;
     drawOdds();
   };
 }

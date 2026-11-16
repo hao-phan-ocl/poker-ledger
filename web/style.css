@@ -241,33 +241,37 @@ label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 
 .slot .suit  { font-size: 0.95rem; line-height: 1; }
 .slot.red    { color: #c02f2f; }
 
-.deck {
+/* Pick a card as a rank then a suit (either order): 17 buttons, not 52. */
+.picker-ranks {
   display: grid;
-  grid-template-columns: repeat(13, 1fr);
-  gap: 3px;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
   margin-top: 4px;
 }
-
-.deck button {
-  min-height: 40px;
-  padding: 2px 0;
-  font-size: 0.78rem;
+.picker-suits {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin-top: 8px;
+}
+.picker-ranks button,
+.picker-suits button {
+  min-height: 44px;
+  padding: 0;
+  font-size: 1.05rem;
   font-weight: 700;
-  border-radius: 6px;
+  border-radius: 8px;
   background: #f3f5f8;
   color: #14181d;
-  border: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  line-height: 1.05;
+  border: 2px solid transparent;
+  white-space: nowrap;
 }
-.deck button.red { color: #c02f2f; }
-.deck button.used { opacity: 0.18; }
-.deck button .suit { font-size: 0.8rem; }
-/* "10" is the only two-character rank; keep it on one line in a narrow cell. */
-.deck button > span { white-space: nowrap; letter-spacing: -0.03em; }
+.picker-suits button { min-height: 52px; font-size: 1.6rem; line-height: 1; }
+.picker-suits button.red { color: #c02f2f; }
+.picker-ranks button.on,
+.picker-suits button.on { border-color: var(--accent); background: #dff3e8; }
+.picker-ranks button.used,
+.picker-suits button.used { opacity: 0.18; }
 
 .bars { margin: 8px 0 4px; }
 .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 0.9rem; }
@@ -332,5 +336,4 @@ label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 
 
 @media (min-width: 560px) {
   .slot { width: 50px; height: 68px; font-size: 1.1rem; }
-  .deck button { min-height: 46px; font-size: 0.88rem; }
 }
