@@ -11,8 +11,8 @@ from collections.abc import Iterator
 from dataclasses import asdict
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import ledger, stats
@@ -37,6 +37,13 @@ app = FastAPI(
     description="Buy-ins, settlement and hand equity for a home game.",
     version="0.1.0",
 )
+
+
+@app.exception_handler(OverflowError)
+def too_large(_request: Request, _exc: OverflowError) -> JSONResponse:
+    # SQLite integers stop at 2**63. A bigger number in a path or body would
+    # otherwise surface as a bare 500 rather than something the page can show.
+    return JSONResponse(status_code=400, content={"detail": "that number is too large"})
 
 
 def get_conn() -> Iterator[sqlite3.Connection]:

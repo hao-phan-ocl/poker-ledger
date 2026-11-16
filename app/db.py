@@ -1,4 +1,5 @@
 import sqlite3
+import threading
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -40,11 +41,27 @@ def connect(path: Path | str = DEFAULT_DB_PATH) -> sqlite3.Connection:
     return conn
 
 
+# Every request opens a connection and migrates. Without this, two requests
+# arriving together on an old database would both run the same migration.
+_migrate_lock = threading.Lock()
+
+
 def migrate(conn: sqlite3.Connection) -> int:
-    version = conn.execute("PRAGMA user_version").fetchone()[0]
-    for index in range(version, len(MIGRATIONS)):
-        with conn:
-            conn.executescript(MIGRATIONS[index])
-            # PRAGMA takes no bound parameters; the value is a loop index.
-            conn.execute(f"PRAGMA user_version = {index + 1}")
+    with _migrate_lock:
+        version = conn.execute("PRAGMA user_version").fetchone()[0]
+        for index in range(version, len(MIGRATIONS)):
+            # executescript commits on its own, so `with conn` cannot make a
+            # migration atomic. Wrap each in its own transaction, version bump
+            # included: a migration that fails halfway leaves no trace, and the
+            # next start retries it cleanly instead of hitting a half-applied
+            # schema. (PRAGMA takes no bound parameters; the value is an index.)
+            try:
+                conn.executescript(
+                    "BEGIN;\n"
+                    + MIGRATIONS[index]
+                    + f"\n;\nPRAGMA user_version = {index + 1};\nCOMMIT;"
+                )
+            except Exception:
+                conn.rollback()
+                raise
     return len(MIGRATIONS)

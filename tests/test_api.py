@@ -385,3 +385,12 @@ def test_the_page_is_served(client):
     assert "Poker Ledger" in response.text
     assert client.get("/app.js").status_code == 200
     assert client.get("/health").json()["status"] == "ok"
+
+
+def test_a_number_too_big_for_sqlite_is_a_clean_400(client):
+    game_id = new_game(client)
+    player_id = new_player(client, "Hao")
+    seat(client, game_id, player_id)
+    response = txn(client, game_id, player_id, "buy_in", 2**63)
+    assert response.status_code == 400
+    assert response.json()["detail"] == "that number is too large"

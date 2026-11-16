@@ -121,6 +121,8 @@ def seat_player(
 
 
 def unseat_player(conn: sqlite3.Connection, game_id: int, player_id: int) -> None:
+    if get_game(conn, game_id)["status"] == CLOSED:
+        raise LedgerError("this game is closed - reopen it to make changes")
     count = conn.execute(
         "SELECT COUNT(*) FROM txn WHERE game_id = ? AND player_id = ?",
         (game_id, player_id),
@@ -243,8 +245,11 @@ def delete_txn(conn: sqlite3.Connection, txn_id: int) -> None:
     row = conn.execute("SELECT game_id FROM txn WHERE id = ?", (txn_id,)).fetchone()
     if row is None:
         raise LedgerError(f"no transaction with id {txn_id}")
-    if get_game(conn, row["game_id"])["status"] == CLOSED:
+    game = get_game(conn, row["game_id"])
+    if game["status"] == CLOSED:
         raise LedgerError("this game is closed - reopen it to make changes")
+    if game["voided"]:
+        raise LedgerError("this game is voided - restore it before changing anything")
     with conn:
         conn.execute("DELETE FROM txn WHERE id = ?", (txn_id,))
 

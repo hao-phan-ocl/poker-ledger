@@ -342,6 +342,19 @@ class TestVoiding:
         ledger.delete_game(conn, mistake)
         assert stats.all_player_stats(conn)[0].games_played == 1
 
+    def test_entries_in_a_voided_game_cannot_be_deleted(self, conn, game):
+        player = seat(conn, game, "Hao")
+        entry = ledger.buy_in(conn, game, player, 5000)
+        ledger.void_game(conn, game)
+        with pytest.raises(LedgerError, match="voided"):
+            ledger.delete_txn(conn, entry)
+
+    def test_nobody_can_be_unseated_from_a_closed_game(self, conn, game):
+        player = seat(conn, game, "Hao")
+        ledger.close_game(conn, game)
+        with pytest.raises(LedgerError, match="closed"):
+            ledger.unseat_player(conn, game, player)
+
 
 class TestMigrations:
     def test_an_existing_database_migrates_forward(self, tmp_path):
@@ -377,6 +390,29 @@ class TestMigrations:
         second = db.connect(path)
         assert second.execute("PRAGMA user_version").fetchone()[0] == version
         second.close()
+
+    def test_a_failed_migration_leaves_no_trace(self, tmp_path, monkeypatch):
+        from app import db
+
+        path = tmp_path / "broken.db"
+        db.connect(path).close()
+        version = len(db.MIGRATIONS)
+
+        # The first statement works, the second fails: none of it may stick,
+        # or the retry on next start would trip over a half-applied schema.
+        broken = """
+            ALTER TABLE game ADD COLUMN half_done INTEGER NOT NULL DEFAULT 0;
+            ALTER TABLE no_such_table ADD COLUMN x INTEGER;
+        """
+        monkeypatch.setattr(db, "MIGRATIONS", [*db.MIGRATIONS, broken])
+        with pytest.raises(sqlite3.OperationalError):
+            db.connect(path)
+
+        conn = sqlite3.connect(path)
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(game)")}
+        assert "half_done" not in columns
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == version
+        conn.close()
 
 
 class TestMoneyFormatting:

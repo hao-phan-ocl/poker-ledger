@@ -111,7 +111,10 @@ async function api(path, options = {}) {
   const data = text ? JSON.parse(text) : null;
   if (!response.ok) {
     const detail = data && data.detail;
-    throw new Error(typeof detail === 'string' ? detail : 'Something went wrong');
+    throw Object.assign(
+      new Error(typeof detail === 'string' ? detail : 'Something went wrong'),
+      { status: response.status },
+    );
   }
   return data;
 }
@@ -218,6 +221,7 @@ async function renderGames() {
 
   const games = await attempt(() => api('/games'));
   if (!games) return;
+  if (currentPath() !== '/games') return; // navigated away while loading
 
   if (!games.length) {
     view.innerHTML = `<div class="empty">
@@ -286,13 +290,16 @@ async function renderGame(gameId) {
   const { game, summary, transactions } = detail;
   const settlement = await attempt(() => api(`/games/${gameId}/settlement`));
   const players = await attempt(() => api('/players')) || [];
+  if (currentPath() !== `/game/${gameId}`) return; // navigated away while loading
   const seated = new Set(summary.results.map((r) => r.player_id));
   const anyCashedOut = summary.results.some((r) => r.cashed_out);
 
   viewTitle.textContent = game.label;
   viewAction.innerHTML = '<a href="#/games" class="muted" style="text-decoration:none">Back</a>';
 
-  const onTable = summary.total_buy_in_cents - summary.total_cash_out_cents;
+  // The same sum as the balance check, so the two never disagree.
+  const onTable = summary.total_buy_in_cents - summary.total_cash_out_cents
+    - summary.total_adjustment_cents;
 
   view.innerHTML = `
     ${game.voided ? `<div class="banner warn">
@@ -434,9 +441,19 @@ function settlementSection(settlement) {
 function bindGameActions(gameId, game, summary, transactions) {
   const nameOf = (id) => (summary.results.find((r) => r.player_id === id) || {}).name || 'player';
 
+  // Real money: a double tap, or a second tap on a slow connection, must not
+  // record the same buy-in twice. Lock every money button until it lands.
+  let posting = false;
+  const moneyButtons = view.querySelectorAll('[data-quickbuy], [data-buyin], [data-cashout]');
+
   async function post(body) {
+    if (posting) return;
+    posting = true;
+    moneyButtons.forEach((b) => { b.disabled = true; });
     const result = await attempt(() =>
       api(`/games/${gameId}/transactions`, { method: 'POST', body }));
+    posting = false;
+    moneyButtons.forEach((b) => { b.disabled = false; });
     if (!result) return;
 
     renderGame(gameId);
@@ -535,7 +552,9 @@ function bindGameActions(gameId, game, summary, transactions) {
         renderGame(gameId);
         toast('Game closed — results are on the Players tab');
       } catch (error) {
-        // The books do not balance. Say so plainly rather than closing over it.
+        // Only the server's own refusal (400: the books do not balance) earns
+        // a "close anyway". A network or proxy failure is just an error.
+        if (error.status !== 400) { toast(error.message, { error: true }); return; }
         const force = await confirmModal('Close anyway?', error.message, 'Close anyway');
         if (!force) return;
         const ok = await attempt(() => api(`/games/${gameId}/close`, {
@@ -625,6 +644,7 @@ async function renderPlayers() {
     attempt(() => api('/players')),
   ]);
   if (!statsList || !players) return;
+  if (currentPath() !== '/players') return; // navigated away while loading
 
   const played = new Set(statsList.map((s) => s.player_id));
   const unplayed = players.filter((p) => !played.has(p.id));
@@ -978,16 +998,19 @@ function prettyCard(card) {
 }
 
 let oddsTimer;
+let oddsRequest = 0;
 function computeOdds() {
   clearTimeout(oddsTimer);
   oddsTimer = setTimeout(runOdds, 180);
 }
 
 async function runOdds() {
+  const request = ++oddsRequest;
+  const onOdds = () => currentPath() === '/odds';
   const board = odds.board.filter(Boolean);
   if (!odds.hole[0] || !odds.hole[1] || ![0, 3, 4, 5].includes(board.length)) {
     odds.result = null;
-    drawOdds();
+    if (onOdds()) drawOdds();
     return;
   }
 
@@ -999,10 +1022,13 @@ async function runOdds() {
     trials: 50000,
   };
   const result = await attempt(() => api('/odds', { method: 'POST', body }));
+  // A later change of cards has already sent a newer request; this answer
+  // is for cards no longer on screen.
+  if (request !== oddsRequest) return;
   odds.busy = false;
   if (result) {
     odds.result = result;
-    drawOdds();
+    if (onOdds()) drawOdds();
   }
 }
 
